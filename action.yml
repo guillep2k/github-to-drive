@@ -1,0 +1,6 @@
+name: 'Github to Drive'
+description: 'GitHub to Google Drive contents synchronizer'
+author: 'guillep2k'
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
