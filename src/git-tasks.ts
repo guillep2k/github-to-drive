@@ -105,7 +105,7 @@ export async function getGitFileList(
         )
         const relPath = fullPath.substring(subdir.length)
         // Ignore files that don't match the patterns
-        if (!matcher.matches(relPath)) continue
+        if (!matcher.matches('/' + relPath)) continue
         let exists: boolean
         await access(realPath, constants.R_OK)
           .then(() => (exists = true))
