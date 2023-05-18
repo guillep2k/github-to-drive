@@ -3,6 +3,8 @@ import {constants} from 'fs'
 import nodePath from 'path'
 import simpleGit from 'simple-git'
 
+import {fileMatcher} from './file-match'
+
 export enum gitAction {
   A = 'A',
   M = 'M',
@@ -21,6 +23,7 @@ export interface gitFile {
 export async function getGitFileList(
   root: string | undefined,
   origin: string,
+  matcher: fileMatcher,
   subdir = ''
 ): Promise<gitFile[]> {
   try {
@@ -85,8 +88,8 @@ export async function getGitFileList(
         const fullPath = parts[1]
         // Ignore files not under subdir
         if (subdir && !fullPath.startsWith(subdir)) continue
-        // Ignore files that have components starting with '.', like .github/workflows
-        if (fullPath.split(nodePath.posix.sep).some(c => c.startsWith('.')))
+        // Ignore files under '.github', like .github/workflows
+        if (fullPath.split(nodePath.posix.sep)[0].toLowerCase() == '.github')
           continue
         // Ignore files already processed on newer commits (commits are ordered newest to oldest)
         if (fileList[fullPath]) continue
@@ -100,6 +103,9 @@ export async function getGitFileList(
           root ?? '',
           fullPath.split(nodePath.posix.sep).join(nodePath.sep)
         )
+        const relPath = fullPath.substring(subdir.length)
+        // Ignore files that don't match the patterns
+        if (!matcher.matches(relPath)) continue
         let exists: boolean
         await access(realPath, constants.R_OK)
           .then(() => (exists = true))
@@ -115,7 +121,6 @@ export async function getGitFileList(
               line
             )}'`
         }
-        const relPath = fullPath.substring(subdir.length)
         const file: gitFile = {
           name: nodePath.posix.basename(fullPath),
           fullPath: fullPath,

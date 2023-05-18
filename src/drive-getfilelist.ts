@@ -5,7 +5,8 @@
 // from a user external to the organization to perform the actions in the organization owned drive.
 // Original source: https://github.com/tanaikech/node-getfilelist@e021034e0a765ecc44689acd47b5f6fd0b7643a0
 // node-getfilelist: This is a Node.js module to retrieve the file list with the folder tree from the specific folder of Google Drive.
-const {google} = require('googleapis')
+// const {google} = require('googleapis')
+import {google} from 'googleapis'
 // let driveIdForgetfilelist = "";
 
 async function getList(drive, ptoken, q, fields) {

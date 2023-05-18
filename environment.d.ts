@@ -5,7 +5,8 @@ declare global {
       GDRIVE_FOLDERID: string // Folder ID on Drive where the copy should take place
       GIT_ROOT: string | undefined // Folder on the local drive where the git repository copy is to be found
       GIT_SUBDIR: string | undefined // Sub-folder (relative) in the local drive to take the files from (e.g. samples/guides)
-      GIT_ORIGIN: string // Name of the origin branch to take the history from (e.g. origin/main)
+      GIT_ORIGIN: string // Name of the origin branch to take the history from (e.g. origin/main)npm
+      GIT_GLOB: string | undefined // Glob patterns, separated by `|`, of files to include or exclude (when preceded by !)
       MAIL_ACCOUNT: string | undefined // e-mail of the mail account to impersonate
       MAIL_PREFIX: string | undefined // Text prefix for the subject; e.g. "DriveUpdater: "
       MAIL_ERRORTO: string | undefined // Mail to send error logs to

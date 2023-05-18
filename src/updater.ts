@@ -1,4 +1,5 @@
 import nodePath from 'path'
+import {fileMatcher} from './file-match'
 
 import {gitAction, gitFile, getGitFileList} from './git-tasks'
 
@@ -44,6 +45,7 @@ export async function run() {
     logger.debug(`GIT_ROOT: [${process.env.GIT_ROOT ?? ''}]`)
     logger.debug(`GIT_SUBDIR: [${process.env.GIT_SUBDIR ?? ''}]`)
     logger.debug(`GIT_ORIGIN: [${process.env.GIT_ORIGIN}]`)
+    logger.debug(`GIT_GLOB: [${process.env.GIT_GLOB}]`)
     logger.debug(`SLACK_CHANNELS: [${process.env.SLACK_CHANNELS}]`)
 
     // Not supported yet
@@ -51,6 +53,8 @@ export async function run() {
     // logger.debug(`MAIL_PREFIX: [${process.env.MAIL_PREFIX ?? ''}]`)
     // logger.debug(`MAIL_ERRORTO: [${process.env.MAIL_ERRORTO ?? ''}]`)
     // logger.debug(`MAIL_DEBUGTO: [${process.env.MAIL_DEBUGTO ?? ''}]`)
+
+    const matcher = new fileMatcher(process.env.GIT_GLOB)
 
     if (process.env.MAIL_ACCOUNT)
       throw 'Sending mail is not supported yet, sorry.'
@@ -79,6 +83,7 @@ export async function run() {
       const gitFiles = await getGitFileList(
         process.env.GIT_ROOT,
         process.env.GIT_ORIGIN,
+        matcher,
         process.env.GIT_SUBDIR
       )
 

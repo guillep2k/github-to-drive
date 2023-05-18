@@ -26,6 +26,7 @@ Use this action to keep a Google Drive folder in sync with the contents of a Git
 
 * **GIT_SUBDIR**: In the local repository, the path to the subfolder that holds the contents to upload (can be ".")
 * **SLACK_CHANNELS**: List of Slack channels (separated by `|`) to post updates to; these must be URLs from Slack webhooks.
+* **GIT_GLOB**: Glob patterns to match files with, separated by `|`. Use format from the [multimatch library](https://github.com/sindresorhus/multimatch).
 * **GIT_ROOT**: _[Intended for testing only]_ Local path to the git root folder (normally "." or left unset) (e.g. /home/users/repo)
 
 ## Example usage
@@ -55,6 +56,7 @@ jobs:
         GDRIVE_FOLDERID: ${{ vars.GDRIVE_FOLDERID }}    # Use secrets or vars accordingly
         GIT_ORIGIN: ${{ vars.GIT_ORIGIN }}              # Use secrets or vars accordingly
         GIT_SUBDIR: ${{ vars.GIT_SUBDIR }}              # Use secrets or vars accordingly
+        GIT_GLOB: ${{ vars.GIT_GLOB }}                  # Use secrets or vars accordingly
         SLACK_CHANNELS: ${{ secrets.SLACK_CHANNELS }}   # Always use secrets
 ```
 
