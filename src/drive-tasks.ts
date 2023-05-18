@@ -93,9 +93,9 @@ export async function getDriveList(ctx: driveContext): Promise<boolean> {
         }
         ctx.files.push(dfile)
         folder.files.push(dfile)
-        logger.debug(`    File: '${dfile.fullPath}'`)
-        logger.debug(`        Description:[${dfile.description}]`)
-        logger.debug(`        Commit:[${dfile.properties?.commit}]`)
+        logger.debug(`    File ${dfile.id}: '${dfile.fullPath}'`)
+        logger.debug(`        Description:[${dfile.description ?? ''}]`)
+        logger.debug(`        Commit:[${dfile.properties?.commit ?? '<none>'}]`)
       })
     })
 
