@@ -168,7 +168,7 @@ async function createFile(gf: gitFile, driveCtx: driveContext) {
       `*[ADDED]* <${df.webViewLink}|${df.name}> to \`${df.folder.fullPath}\``
     )
   } catch (error) {
-    logger.log(
+    logger.error(
       `createFile(): unable to create file in drive:\n    ${parent}/${gf.name}\n    ${error}`
     )
   }
@@ -191,7 +191,7 @@ async function updateFile(df: driveFile, gf: gitFile, driveCtx: driveContext) {
       `*[MODIFIED]* <${df.webViewLink}|${df.name}> at \`${df.folder.fullPath}\``
     )
   } catch (error) {
-    logger.log(
+    logger.error(
       `updateFile(): unable to update file in drive:\n    ${df.fullPath}\n    ${error}`
     )
   }
@@ -222,7 +222,7 @@ async function deleteFile(
       logger.debug(`Deleted folder on drive: [${folder.fullPath}]`)
     }
   } catch (error) {
-    logger.log(
+    logger.error(
       `updateFile(): unable to delete file in drive:\n    ${df.fullPath}\n    ${error}`
     )
   }

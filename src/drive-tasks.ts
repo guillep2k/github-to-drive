@@ -126,6 +126,7 @@ export async function createDriveFolder(
   const drive = ctx.getDrive()
   const params: drive_v3.Params$Resource$Files$Create = {
     fields: 'id',
+    supportsAllDrives: true,
     requestBody: {
       mimeType: 'application/vnd.google-apps.folder',
       name: name,
@@ -164,6 +165,7 @@ export async function createDriveFile(
   const drive = ctx.getDrive()
   const params: drive_v3.Params$Resource$Files$Create = {
     fields: 'id,webViewLink',
+    supportsAllDrives: true,
     requestBody: {
       name: name,
       properties: properties,
@@ -204,6 +206,7 @@ export async function updateDriveFile(
   const params: drive_v3.Params$Resource$Files$Update = {
     fileId: file.id,
     fields: 'id',
+    supportsAllDrives: true,
     requestBody: {
       properties: file.properties,
       description: file.description
@@ -230,6 +233,7 @@ export async function deleteDriveFile(
   const params: drive_v3.Params$Resource$Files$Update = {
     fileId: file.id,
     fields: 'id',
+    supportsAllDrives: true,
     requestBody: {
       properties: file.properties,
       description: file.description,
@@ -258,6 +262,7 @@ export async function deleteDriveFolder(
   const params: drive_v3.Params$Resource$Files$Update = {
     fileId: folder.id,
     fields: 'id',
+    supportsAllDrives: true,
     requestBody: {
       trashed: true
     }
