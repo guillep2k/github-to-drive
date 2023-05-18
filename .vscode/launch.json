@@ -13,15 +13,7 @@
             ],
             "program": "${workspaceFolder}/lib/main.js",
             "preLaunchTask": "tsc: build - tsconfig.json",
-            "env": {
-                // Be careful what you add here! It will be commited to the repository.
-                // "GOOGLE_KEY": "" ,
-                // "GDRIVE_FOLDERID": "",
-                // "GIT_ROOT": "",
-                // "GIT_ORIGIN": "",
-                // "GIT_SUBDIR": "",
-                // "SLACK_CHANNELS": "",
-            },
+            "envFile": "${userHome}/source/github-to-drive/.env",
             "outFiles": [
                 "${workspaceFolder}/lib/**/*.js"
             ]

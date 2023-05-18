@@ -45,9 +45,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        # ref: main     # Normally not required
-        fetch-depth: 0
-        lfs: true
+        # ref: main         # Normally not required
+        fetch-depth: 0      # Very important to fetch the whole remote repo!
+        lfs: true           # Make sure to include any required LFS contents, if any
     - name: Update Guides
       uses: guillep2k/gitub-to-drive@latest
       env:
