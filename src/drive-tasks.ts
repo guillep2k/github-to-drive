@@ -7,7 +7,7 @@ import {logger} from './logger'
 
 const badLink = 'about:blank'
 
-const getfilelist = require('google-drive-getfilelist')
+import {getFileList} from './drive-getfilelist'
 
 export interface driveFolder {
   name: string // OPEL
@@ -278,7 +278,7 @@ export async function deleteDriveFolder(
 async function getDriveFileListAsync(resource: any): Promise<any> {
   // Make the function async-compatible
   return new Promise(function (resolve, reject) {
-    getfilelist.GetFileList(resource, function (err: any, res: any) {
+    getFileList(resource, function (err: any, res: any) {
       if (err) {
         reject(err)
       } else {
