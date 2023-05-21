@@ -39,6 +39,13 @@ export class driveContext {
   getDrive(): drive_v3.Drive {
     return google.drive({version: 'v3', auth: this.auth})
   }
+  public folderCreators: {[key: string]: Promise<driveFolder>} = {}
+  public folderCreator(path: string): Promise<driveFolder> {
+    return this.folderCreators[path]
+  }
+  public addFolderCreator(path: string, creator: Promise<driveFolder>) {
+    this.folderCreators[path] = creator
+  }
 }
 
 export async function getDriveList(ctx: driveContext): Promise<boolean> {
@@ -110,13 +117,23 @@ export async function createDriveFolder(
   ctx: driveContext
 ): Promise<driveFolder> {
   if (path == '.') path = ''
-  let folder = Object.entries(ctx.folders).find(
+  const folder = Object.entries(ctx.folders).find(
     ([, val]) => val.fullPath == path
   )?.[1]
   if (folder) return folder
 
   if (path == '') throw `createDriveFolder: unable to find root folder in drive`
 
+  if (!ctx.folderCreator(path)) {
+    ctx.addFolderCreator(path, rawCreateDriveFolder(path, ctx))
+  }
+  return ctx.folderCreator(path)
+}
+
+async function rawCreateDriveFolder(
+  path: string,
+  ctx: driveContext
+): Promise<driveFolder> {
   const parent = await createDriveFolder(nodePath.dirname(path), ctx)
   if (!parent)
     throw `createDriveFolder: unable to find parent folder for [${path}]`
@@ -139,7 +156,7 @@ export async function createDriveFolder(
   if (!res?.data?.id) throw `Drive folder created but no ID returned: '${path}'`
 
   // Create and return the driveFolder object
-  folder = {
+  const folder = {
     id: res.data.id,
     name: name,
     fullPath: path,

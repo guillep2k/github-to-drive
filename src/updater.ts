@@ -18,6 +18,8 @@ import {getGDriveAuth, getGMailAuth} from './auth-tasks'
 import {mail, sendMail} from './mail-tasks'
 import {slackConfig, slackNotify} from './slack-tasks'
 import {logger} from './logger'
+import {RateController} from './rate-controller'
+import {error} from 'console'
 
 const appName = 'Github2Drive'
 
@@ -31,6 +33,20 @@ interface action {
   type: actionType
   gitFile?: gitFile
   driveFile?: driveFile
+}
+
+class actionNotifier {
+  data: string[] = []
+  add(msg: string) {
+    logger.notice(msg)
+    this.data.push(msg)
+  }
+  async notify(slackcfg: slackConfig) {
+    // TODO: avoid creating messages longer than 40,000 chars
+    const batch = this.data
+    this.data = []
+    await slackNotify(batch, slackcfg)
+  }
 }
 
 export async function run() {
@@ -98,11 +114,41 @@ export async function run() {
       if (actions.length) {
         logger.debug('Executing required actions.')
 
+        // Max 20 updates at the same time
+        const rc = new RateController(20)
+        const tasks = []
+        const notifier = new actionNotifier()
+
+        // finished will grow until equal to actions.length
+        let finished = 0
+
         for (const action of actions) {
-          await executeAction(action, gitFiles, driveCtx)
-          await slackNotify(logger.notices(), slackcfg)
-          logger.clearNotices()
+          tasks.push(
+            rc.fire('', async () => {
+              try {
+                await executeAction(notifier, action, gitFiles, driveCtx)
+              } catch (err) {
+                logger.error(`executeAction error: ${error}`)
+              }
+              finished += 1
+            })
+          )
         }
+
+        // notified will grow until equal to finished
+        let notified = 0
+
+        while (notified < actions.length) {
+          // Make sure to not call Slack faster than twice a second
+          await new Promise<void>(done => setTimeout(() => done(), 500))
+          if (notified == finished) continue
+          // Sync notified with finished
+          notified = finished
+          // Now call slack
+          notifier.notify(slackcfg)
+        }
+
+        await Promise.allSettled(tasks)
       } else {
         logger.debug('No actions required.')
       }
@@ -155,7 +201,11 @@ export async function run() {
   }
 }
 
-async function createFile(gf: gitFile, driveCtx: driveContext) {
+async function createFile(
+  notifier: actionNotifier,
+  gf: gitFile,
+  driveCtx: driveContext
+) {
   const parent = nodePath.dirname(gf.relPath)
   try {
     const folder = await createDriveFolder(parent, driveCtx)
@@ -173,7 +223,7 @@ async function createFile(gf: gitFile, driveCtx: driveContext) {
       driveCtx
     )
     logger.debug(`Created file on drive: [${df.fullPath}]`)
-    logger.notice(
+    notifier.add(
       `*[ADDED]* <${df.webViewLink}|${df.name}> to \`${df.folder.fullPath}\``
     )
   } catch (error) {
@@ -183,7 +233,12 @@ async function createFile(gf: gitFile, driveCtx: driveContext) {
   }
 }
 
-async function updateFile(df: driveFile, gf: gitFile, driveCtx: driveContext) {
+async function updateFile(
+  notifier: actionNotifier,
+  df: driveFile,
+  gf: gitFile,
+  driveCtx: driveContext
+) {
   try {
     // The file already exists on GDrive; we just need to upload it again
     // Convert the posix git-relative path to a local (windows/posix) path
@@ -196,7 +251,7 @@ async function updateFile(df: driveFile, gf: gitFile, driveCtx: driveContext) {
     df.properties.commit = gf.lastCommit
     await updateDriveFile(realPath, df, driveCtx)
     logger.debug(`Updated file on drive: [${df.fullPath}]`)
-    logger.notice(
+    notifier.add(
       `*[MODIFIED]* <${df.webViewLink}|${df.name}> at \`${df.folder.fullPath}\``
     )
   } catch (error) {
@@ -207,6 +262,7 @@ async function updateFile(df: driveFile, gf: gitFile, driveCtx: driveContext) {
 }
 
 async function deleteFile(
+  notifier: actionNotifier,
   gf: gitFile,
   df: driveFile,
   gitFiles: gitFile[],
@@ -219,7 +275,7 @@ async function deleteFile(
     const folder = df.folder
     await deleteDriveFile(df, driveCtx)
     logger.debug(`Deleted file on drive: [${df.fullPath}]`)
-    logger.notice(`*[REMOVED]* _${df.name}_ from \`${df.folder.fullPath}\``)
+    notifier.add(`*[REMOVED]* _${df.name}_ from \`${df.folder.fullPath}\``)
     // Remove file from GIT collection
     gitFiles.splice(gitFiles.indexOf(gf), 1)
     // If folder gets empty, delete the folder as well
@@ -290,19 +346,26 @@ function getRequiredActions(
 }
 
 async function executeAction(
+  notifier: actionNotifier,
   action: action,
   gitFiles: gitFile[],
   driveCtx: driveContext
 ) {
   switch (action.type) {
     case actionType.create:
-      await createFile(action.gitFile!, driveCtx)
+      await createFile(notifier, action.gitFile!, driveCtx)
       break
     case actionType.update:
-      await updateFile(action.driveFile!, action.gitFile!, driveCtx)
+      await updateFile(notifier, action.driveFile!, action.gitFile!, driveCtx)
       break
     case actionType.delete:
-      await deleteFile(action.gitFile!, action.driveFile!, gitFiles, driveCtx)
+      await deleteFile(
+        notifier,
+        action.gitFile!,
+        action.driveFile!,
+        gitFiles,
+        driveCtx
+      )
       break
   }
 }

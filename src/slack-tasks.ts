@@ -7,6 +7,7 @@ import {logger} from './logger'
 const slackUrlRegExp =
   /^[A-Z0-9]{9,15}\/[A-Z0-9]{9,15}\/[0-9a-zA-Z_+/-]{18,32}$/
 const slackPfx = 'https://hooks.slack.com/services/'
+const MAX_SLACK_MESSAGE = 30000 // It's 40,000 actually
 
 const maxAttemptCount = 5
 const retryDelay = 3000 // 3 seconds between attempts
@@ -27,10 +28,24 @@ export async function slackNotify(
   config: slackConfig
 ) {
   if (typeof messages === 'string') messages = [messages]
-  for (const url of config.urls) {
-    for (const m of messages) {
+  messages = messages.filter(m => m != '')
+  // Repeat until all messages are sent
+  while (messages.length) {
+    // Chunk messages in blocks of up to MAX_SLACK_MESSAGE chars
+    const current: string[] = []
+    let messageLength = 0
+    for (;;) {
+      messageLength += messages[0].length
+      current.push(messages.shift()!)
+      if (
+        messages.length == 0 ||
+        messageLength + messages[0].length + 1 >= MAX_SLACK_MESSAGE
+      )
+        break
+    }
+    for (const url of config.urls) {
       try {
-        await retryPostRequest(url, {text: m})
+        await retryPostRequest(url, {text: current.join('\n')})
       } catch (error) {
         logger.error(`Slack API call error: ${error}`)
         // Do not abort the rest of the requests
