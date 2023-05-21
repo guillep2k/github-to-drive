@@ -95,12 +95,16 @@ export async function run() {
 
       const actions = getRequiredActions(gitFiles, driveCtx)
 
-      logger.debug('Executing required actions.')
+      if (actions.length) {
+        logger.debug('Executing required actions.')
 
-      for (const action of actions) {
-        await executeAction(action, gitFiles, driveCtx)
-        await slackNotify(logger.notices(), slackcfg)
-        logger.clearNotices()
+        for (const action of actions) {
+          await executeAction(action, gitFiles, driveCtx)
+          await slackNotify(logger.notices(), slackcfg)
+          logger.clearNotices()
+        }
+      } else {
+        logger.debug('No actions required.')
       }
     } catch (error: any) {
       // Add the error to the log trail first
