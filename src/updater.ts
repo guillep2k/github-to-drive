@@ -16,7 +16,7 @@ import {
 
 import {getGDriveAuth, getGMailAuth} from './auth-tasks'
 import {mail, sendMail} from './mail-tasks'
-import {slackConfig, slackNotify} from './slack-tasks'
+import {slackConfig, slackNotifier} from './slack-tasks'
 import {logger} from './logger'
 import {RateController} from './rate-controller'
 import {error} from 'console'
@@ -35,25 +35,13 @@ interface action {
   driveFile?: driveFile
 }
 
-class actionNotifier {
-  data: string[] = []
-  add(msg: string) {
-    logger.notice(msg)
-    this.data.push(msg)
-  }
-  async notify(slackcfg: slackConfig) {
-    // TODO: avoid creating messages longer than 40,000 chars
-    const batch = this.data
-    this.data = []
-    await slackNotify(batch, slackcfg)
-  }
-}
-
 export async function run() {
   try {
     if (!process.env.GOOGLE_KEY) throw '$GOOGLE_KEY is empty'
     if (!process.env.GDRIVE_FOLDERID) throw '$GDRIVE_FOLDERID is empty'
     if (!process.env.GIT_ORIGIN) throw '$GIT_ORIGIN is empty'
+
+    const dryRun = process.env.DRY_RUN == 'true'
 
     // Do not expose credentials!
     // logger.debug(`GOOGLE_KEY: [${process.env.GOOGLE_KEY}]`)
@@ -62,7 +50,10 @@ export async function run() {
     logger.debug(`GIT_SUBDIR: [${process.env.GIT_SUBDIR ?? ''}]`)
     logger.debug(`GIT_ORIGIN: [${process.env.GIT_ORIGIN}]`)
     logger.debug(`GIT_GLOB: [${process.env.GIT_GLOB}]`)
+    // Do not expose credentials!
+    // logger.debug(`SLACK_TOKEN: [${process.env.SLACK_TOKEN}]`)
     logger.debug(`SLACK_CHANNELS: [${process.env.SLACK_CHANNELS}]`)
+    logger.debug(`DRY_RUN: [${dryRun ? 'true' : 'false or not set'}]`)
 
     // Not supported yet
     // logger.debug(`MAIL_ACCOUNT: [${process.env.MAIL_ACCOUNT ?? ''}]`)
@@ -88,13 +79,20 @@ export async function run() {
       await mailAuth.authorize()
     }
 
-    const slackcfg = new slackConfig(process.env.SLACK_CHANNELS)
+    const slackcfg = new slackConfig(
+      process.env.SLACK_TOKEN,
+      process.env.SLACK_CHANNELS
+    )
 
     try {
       logger.debug('Building GIT file list.')
 
       // Error e-mails can be sent inside this try/catch
-      const driveCtx = new driveContext(process.env.GDRIVE_FOLDERID, driveAuth)
+      const driveCtx = new driveContext(
+        process.env.GDRIVE_FOLDERID,
+        driveAuth,
+        dryRun
+      )
 
       const gitFiles = await getGitFileList(
         process.env.GIT_ROOT,
@@ -117,7 +115,7 @@ export async function run() {
         // Max 20 updates at the same time
         const rc = new RateController(20)
         const tasks = []
-        const notifier = new actionNotifier()
+        const notifier = new slackNotifier(slackcfg)
 
         // finished will grow until equal to actions.length
         let finished = 0
@@ -156,10 +154,6 @@ export async function run() {
       // Add the error to the log trail first
       logger.error(`Error: ${error}`)
 
-      // Any notification that might be pending is sent here
-      await slackNotify(logger.notices(), slackcfg)
-      logger.clearNotices()
-
       // Note: mail features currently not working due to GMail limitations
       if (mailAuth && (process.env.MAIL_ERRORTO || process.env.MAIL_DEBUGTO)) {
         const msg = `The following errors were found:\n\n$error\n\nLog trail is:\n\n${logger.logTrail()}`
@@ -177,10 +171,6 @@ export async function run() {
     }
 
     logger.debug(`Process completed.`)
-
-    // Any notification that might be pending is sent here
-    await slackNotify(logger.notices(), slackcfg)
-    logger.clearNotices()
 
     // Note: mail features currently not working due to GMail limitations
     if (mailAuth && process.env.MAIL_DEBUGTO) {
@@ -202,7 +192,7 @@ export async function run() {
 }
 
 async function createFile(
-  notifier: actionNotifier,
+  notifier: slackNotifier,
   gf: gitFile,
   driveCtx: driveContext
 ) {
@@ -234,7 +224,7 @@ async function createFile(
 }
 
 async function updateFile(
-  notifier: actionNotifier,
+  notifier: slackNotifier,
   df: driveFile,
   gf: gitFile,
   driveCtx: driveContext
@@ -262,7 +252,7 @@ async function updateFile(
 }
 
 async function deleteFile(
-  notifier: actionNotifier,
+  notifier: slackNotifier,
   gf: gitFile,
   df: driveFile,
   gitFiles: gitFile[],
@@ -346,7 +336,7 @@ function getRequiredActions(
 }
 
 async function executeAction(
-  notifier: actionNotifier,
+  notifier: slackNotifier,
   action: action,
   gitFiles: gitFile[],
   driveCtx: driveContext

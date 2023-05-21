@@ -6,6 +6,7 @@ import {drive_v3, google} from 'googleapis'
 import {logger} from './logger'
 
 const badLink = 'about:blank'
+const dryLink = 'https://drive.google.com/'
 
 import {getFileList} from './drive-getfilelist'
 
@@ -32,9 +33,11 @@ export class driveContext {
   public readonly folders: driveFolder[] = []
   public readonly auth: any
   public readonly root: string
-  constructor(root: string, auth: any) {
+  public readonly dryRun: boolean
+  constructor(root: string, auth: any, dryRun = false) {
     this.root = root
     this.auth = auth
+    this.dryRun = dryRun
   }
   getDrive(): drive_v3.Drive {
     return google.drive({version: 'v3', auth: this.auth})
@@ -124,6 +127,20 @@ export async function createDriveFolder(
 
   if (path == '') throw `createDriveFolder: unable to find root folder in drive`
 
+  if (ctx.dryRun) {
+    logger.debug(`DryRun: not creating drive folder ${path}`)
+    const name = nodePath.basename(path)
+    const folder = {
+      id: 'fake-folder-id-' + path,
+      name: name,
+      fullPath: path,
+      idPath: [],
+      files: []
+    }
+    ctx.folders.push(folder)
+    return folder
+  }
+
   if (!ctx.folderCreator(path)) {
     ctx.addFolderCreator(path, rawCreateDriveFolder(path, ctx))
   }
@@ -178,6 +195,22 @@ export async function createDriveFile(
   const name = nodePath.basename(localPath)
   const path = `${parent.fullPath}/${name}`
 
+  if (ctx.dryRun) {
+    logger.debug(`DryRun: not creating drive file ${path}`)
+    const file: driveFile = {
+      id: 'fake-drive-id-' + path,
+      name: name,
+      webViewLink: dryLink,
+      fullPath: path,
+      folder: parent,
+      properties: properties
+    }
+    // Add file to collections
+    parent.files.push(file)
+    ctx.files.push(file)
+    return file
+  }
+
   // Need to create the folder on Drive
   const drive = ctx.getDrive()
   const params: drive_v3.Params$Resource$Files$Create = {
@@ -219,6 +252,11 @@ export async function updateDriveFile(
   file: driveFile,
   ctx: driveContext
 ): Promise<driveFile> {
+  if (ctx.dryRun) {
+    logger.debug(`DryRun: not updating drive file ${file.fullPath}`)
+    return file
+  }
+
   const drive = ctx.getDrive()
   const params: drive_v3.Params$Resource$Files$Update = {
     fileId: file.id,
@@ -246,6 +284,10 @@ export async function deleteDriveFile(
   file: driveFile,
   ctx: driveContext
 ): Promise<boolean> {
+  if (ctx.dryRun) {
+    logger.debug(`DryRun: not deleting drive file ${file.fullPath}`)
+    return true
+  }
   const drive = ctx.getDrive()
   const params: drive_v3.Params$Resource$Files$Update = {
     fileId: file.id,
@@ -275,6 +317,10 @@ export async function deleteDriveFolder(
   folder: driveFolder,
   ctx: driveContext
 ): Promise<boolean> {
+  if (ctx.dryRun) {
+    logger.debug(`DryRun: not deleting drive folder ${folder.fullPath}`)
+    return true
+  }
   const drive = ctx.getDrive()
   const params: drive_v3.Params$Resource$Files$Update = {
     fileId: folder.id,

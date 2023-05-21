@@ -27,6 +27,7 @@
     "license": "MIT",
     "dependencies": {
         "@actions/core": "^1.10.0",
+        "@slack/web-api": "^6.8.1",
         "@types/nodemailer": "^6.4.7",
         "axios": "^1.4.0",
         "fs": "^0.0.1-security",

@@ -1,25 +1,51 @@
-import axios from 'axios'
-
+import {
+  ChatPostMessageArguments,
+  WebClient as slackClient
+} from '@slack/web-api'
 import {logger} from './logger'
 
-// RegExp to match a Slack channel ID (xxxxxxxxx/yyyyyyyyyyy/zzzzzzzzzzzzzzzzzzzzzzzz)
-// Strings matching slackUrlRegExp will be prepended with slackPfx.
-const slackUrlRegExp =
-  /^[A-Z0-9]{9,15}\/[A-Z0-9]{9,15}\/[0-9a-zA-Z_+/-]{18,32}$/
-const slackPfx = 'https://hooks.slack.com/services/'
 const MAX_SLACK_MESSAGE = 30000 // It's 40,000 actually
 
 const maxAttemptCount = 5
 const retryDelay = 3000 // 3 seconds between attempts
 const slackTimeout = 60000 // 1 minute API call timeout
 
+export class slackNotifier {
+  public readonly config: slackConfig
+  private data: string[] = []
+  constructor(config: slackConfig) {
+    this.config = config
+  }
+  add(msg: string) {
+    logger.notice(msg)
+    this.data.push(msg)
+  }
+  async notify(slackcfg: slackConfig) {
+    const batch = this.data
+    this.data = []
+    await slackNotify(batch, slackcfg)
+  }
+}
+
 export class slackConfig {
-  public readonly urls: string[]
-  constructor(url: string | string[] = []) {
-    const list = typeof url === 'string' ? url.split('|') : url
-    this.urls = list
-      .map(c => (slackUrlRegExp.test(c) ? slackPfx + c : c))
-      .filter(c => c.toLowerCase().startsWith('https://'))
+  public readonly token?: string
+  public readonly channels: string[]
+  public client?: slackClient
+  constructor(token: string | undefined, channels: string | string[] = []) {
+    this.token = token
+    this.channels =
+      typeof channels === 'string' ? channels.split(',') : channels
+    if (this.token && this.channels.length) {
+      this.client = new slackClient(token, {
+        retryConfig: {
+          // We don't want this process to drag forever
+          maxRetryTime: 120000,
+          retries: 5,
+          minTimeout: 1000,
+          maxTimeout: 5000
+        }
+      })
+    }
   }
 }
 
@@ -27,6 +53,7 @@ export async function slackNotify(
   messages: string | string[],
   config: slackConfig
 ) {
+  if (!config.client) return
   if (typeof messages === 'string') messages = [messages]
   messages = messages.filter(m => m != '')
   // Repeat until all messages are sent
@@ -43,37 +70,19 @@ export async function slackNotify(
       )
         break
     }
-    for (const url of config.urls) {
+    for (const channel of config.channels) {
       try {
-        await retryPostRequest(url, {text: current.join('\n')})
+        const args: ChatPostMessageArguments = {
+          text: current.join('\n'),
+          channel: channel,
+          unfurl_links: false,
+          unfurl_media: false
+        }
+        await config.client.chat.postMessage(args)
       } catch (error) {
-        logger.error(`Slack API call error: ${error}`)
+        logger.error(`Slack API call (#${channel}) error: ${error}`)
         // Do not abort the rest of the requests
       }
     }
-  }
-}
-
-async function retryPostRequest(
-  url: string,
-  body: object,
-  maxAttempts = maxAttemptCount
-) {
-  let attempt = 0
-  for (;;) {
-    try {
-      // Axios' default behavior is to reject every response that returns with a
-      // status code that falls out of the range of 2xx and treat it as an error.
-      await axios.post(url, body, {
-        timeout: slackTimeout,
-        responseType: 'text' // The expected response is 'ok'
-      })
-      return
-    } catch (error: any) {
-      attempt++
-      if (attempt >= maxAttempts) throw error
-      logger.debug(`Slack API call error (retrying): ${error.toString()}`)
-    }
-    await new Promise(resolve => setTimeout(resolve, retryDelay))
   }
 }

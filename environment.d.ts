@@ -11,7 +11,9 @@ declare global {
       MAIL_PREFIX: string | undefined // Text prefix for the subject; e.g. "DriveUpdater: "
       MAIL_ERRORTO: string | undefined // Mail to send error logs to
       MAIL_DEBUGTO: string | undefined // Mail to send debug logs to
-      SLACK_CHANNELS: string | undefined // List of Slack channels (separated by |) to post updates to
+      SLACK_TOKEN: string | undefined // Slack OAuth token for the Slack API
+      SLACK_CHANNELS: string | undefined // List of Slack channel IDs (separated by |) to post updates to
+      DRY_RUN: string | undefined // If 'true', do not update Google Drive
       NODE_ENV: 'development' | 'production'
     }
   }
