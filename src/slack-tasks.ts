@@ -6,10 +6,6 @@ import {logger} from './logger'
 
 const MAX_SLACK_MESSAGE = 30000 // It's 40,000 actually
 
-const maxAttemptCount = 5
-const retryDelay = 3000 // 3 seconds between attempts
-const slackTimeout = 60000 // 1 minute API call timeout
-
 export class slackNotifier {
   public readonly config: slackConfig
   private data: string[] = []

@@ -204,11 +204,11 @@ async function createFile(
       process.env.GIT_ROOT ?? '',
       gf.fullPath.split(nodePath.posix.sep).join(nodePath.sep)
     )
-    const description = `Created by ${appName} upon commit ${gf.lastCommit}`
+    const description = `Created by ${appName} upon hash ${gf.lastHash}`
     const df = await createDriveFile(
       realPath,
       description,
-      {commit: gf.lastCommit},
+      {gitHash: gf.lastHash},
       folder,
       driveCtx
     )
@@ -236,9 +236,9 @@ async function updateFile(
       process.env.GIT_ROOT ?? '',
       gf.fullPath.split(nodePath.posix.sep).join(nodePath.sep)
     )
-    df.description = `Updated by ${appName} upon commit ${gf.lastCommit}`
+    df.description = `Updated by ${appName} upon hash ${gf.lastHash}`
     df.properties = df.properties ?? {}
-    df.properties.commit = gf.lastCommit
+    df.properties.gitHash = gf.lastHash
     await updateDriveFile(realPath, df, driveCtx)
     logger.debug(`Updated file on drive: [${df.fullPath}]`)
     notifier.add(
@@ -253,21 +253,21 @@ async function updateFile(
 
 async function deleteFile(
   notifier: slackNotifier,
-  gf: gitFile,
+  gf: gitFile | undefined,
   df: driveFile,
   gitFiles: gitFile[],
   driveCtx: driveContext
 ) {
   try {
     df.properties = df.properties ?? {}
-    df.properties.commit = gf.lastCommit
-    df.description = `Deleted by ${appName} upon commit ${gf.lastCommit}`
+    df.properties.gitHash = gf?.lastHash ?? 'no-hash'
+    df.description = `Deleted by ${appName} upon hash ${df.properties.gitHash}`
     const folder = df.folder
     await deleteDriveFile(df, driveCtx)
     logger.debug(`Deleted file on drive: [${df.fullPath}]`)
     notifier.add(`*[REMOVED]* _${df.name}_ from \`${df.folder.fullPath}\``)
     // Remove file from GIT collection
-    gitFiles.splice(gitFiles.indexOf(gf), 1)
+    if (gf) gitFiles.splice(gitFiles.indexOf(gf), 1)
     // If folder gets empty, delete the folder as well
     if (
       folder.files.length == 0 &&
@@ -295,12 +295,12 @@ function getRequiredActions(
   driveCtx.files.forEach(df => {
     const gf = gitFiles.find(gf => gf.relPath == df.fullPath)
     // Only process files that should not be here
-    if (gf?.lastAction != gitAction.D) return
+    if ((gf?.lastAction ?? gitAction.D) != gitAction.D) return
     actions.push({type: actionType.delete, gitFile: gf, driveFile: df})
     logger.debug(
-      `File deleted [${df.properties?.commit ?? 'no commit info'}]=>[${
+      `File deleted [${df.properties?.gitHash ?? 'no hash info'}]=>[${
         gf?.lastAction ?? 'not-found'
-      }:${gf?.lastCommit ?? 'no commit'}]: [${gf.relPath}]`
+      }:${gf?.lastHash ?? 'no hash'}]: [${df.fullPath}]`
     )
   })
 
@@ -308,25 +308,25 @@ function getRequiredActions(
   gitFiles
     .filter(gf => gf.lastAction != gitAction.D)
     .forEach(gf => {
-      // Check if the file is in the Drive list, and has the same commit ID
+      // Check if the file is in the Drive list, and has the same hash
       const df = driveCtx.files.find(df => df.fullPath == gf.relPath)
       if (df) {
         // Do not process files that are up-to-date
-        if (df.properties?.commit == gf.lastCommit) {
+        if (df.properties?.gitHash == gf.lastHash) {
           logger.debug(
-            `File up-to-date [${df.properties?.commit}]=>[${gf.lastAction}:${gf.lastCommit}], skipping: [${gf.relPath}]`
+            `File up-to-date [${df.properties?.gitHash}]=>[${gf.lastAction}:${gf.lastHash}], skipping: [${gf.relPath}]`
           )
           return
         }
         actions.push({type: actionType.update, gitFile: gf, driveFile: df})
         logger.debug(
-          `File changed [${df.properties?.commit ?? 'no commit info'}]=>[${
+          `File changed [${df.properties?.gitHash ?? 'no hash info'}]=>[${
             gf.lastAction
-          }:${gf.lastCommit}]: [${gf.relPath}]`
+          }:${gf.lastHash}]: [${gf.relPath}]`
         )
       } else {
         logger.debug(
-          `File created []=>[${gf.lastAction}:${gf.lastCommit}]: [${gf.relPath}]`
+          `File created []=>[${gf.lastAction}:${gf.lastHash}]: [${gf.relPath}]`
         )
         actions.push({type: actionType.create, gitFile: gf})
       }

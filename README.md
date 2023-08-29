@@ -8,9 +8,9 @@ Use this action to keep a Google Drive folder in sync with the contents of a Git
 * The Drive account must have **Drive** API access enabled.
 * All files and directories created on Drive will be owned by the provided service account.
 * The program will sync a snapshot of the files according to the latest contents of the referenced branch, not the contents at the moment of the triggered action. This is meant to prevent that re-running an older action task would overwrite or unsync Drive's contents.
-* Any files showing in the log for the provided branch since the first commit will be deleted/overwritten in the Drive folder to match the last commit of the repository; even those created and deleted prior of the implementation of the action.
-* All files and folders that are present in Drive but were never part of the original repository (matched by path) will be left untouched (i.e. not deleted).
-* Files in Drive created from this action will have a description 'Created/Modified/Removed by ${Github2Drive} upon commit xxxxxx'.
+* File matching is performed using `git hash-object`; metadata from previous hashes is stored in the `.gitHash` property of the file.
+* All files and folders that are present in Drive but are not part of the original repository will be sent to trash.
+* Files in Drive created from this action will have a description 'Created/Modified/Removed by ${Github2Drive} upon hash xxxxxx'.
 * Deleted files will go to Google Drive's `Trash`, but by Google's design, files in `Trash` can only be seen by the service account.
 * A Slack channel will be notified if a webhook URL is provided.
 

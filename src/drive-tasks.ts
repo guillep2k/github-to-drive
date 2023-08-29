@@ -105,7 +105,9 @@ export async function getDriveList(ctx: driveContext): Promise<boolean> {
         folder.files.push(dfile)
         logger.debug(`    File ${dfile.id}: '${dfile.fullPath}'`)
         logger.debug(`        Description:[${dfile.description ?? ''}]`)
-        logger.debug(`        Commit:[${dfile.properties?.commit ?? '<none>'}]`)
+        logger.debug(
+          `        Git Hash:[${dfile.properties?.gitHash ?? '<none>'}]`
+        )
       })
     })
 
@@ -279,7 +281,7 @@ export async function updateDriveFile(
   return file
 }
 
-// deleteDriveFile: send a file to trash and update metadata (e.g. commit ID)
+// deleteDriveFile: send a file to trash and update metadata
 export async function deleteDriveFile(
   file: driveFile,
   ctx: driveContext

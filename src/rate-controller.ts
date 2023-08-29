@@ -13,7 +13,7 @@ export class RateController {
   async fire<T>(desc: string, callback: () => Promise<T>): Promise<T> {
     // Add a new promise to the queue; this promise will
     // remain unresolved until we finish our task here.
-    logger.log(`fire(${desc}): launching`)
+    // logger.log(`fire(${desc}): launching`)
     let resolver: () => void
     const next = new Promise<void>(resolve => (resolver = resolve))
     this.promiseQueue.push(next)
@@ -22,20 +22,20 @@ export class RateController {
       const myturn = this.promiseQueue.shift()
       if (!myturn) throw `Queue depleted (${desc})`
       // Wait for my turn and then fire the action
-      logger.log(`fire(${desc}): about to wait for my turn`)
+      // logger.log(`fire(${desc}): about to wait for my turn`)
       await myturn
       const res = await callback()
       // await myturn.then(async _ => res = await callback()).catch(err => logger.log(JSON.stringify(err)));
-      logger.log(`fire(${desc}): finished waiting for my turn`)
+      // logger.log(`fire(${desc}): finished waiting for my turn`)
       return res!
     } catch (err) {
       logger.error(`fire(${desc}): error found:\n${JSON.stringify(err)}`)
       throw err
     } finally {
       // Fire the next item in the queue
-      logger.log(`fire(${desc}): about to resolve next`)
+      // logger.log(`fire(${desc}): about to resolve next`)
       resolver!()
-      logger.log(`fire(${desc}): next resolved`)
+      // logger.log(`fire(${desc}): next resolved`)
     }
   }
 }
